@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Strategic Equilibrium Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;0,700;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#07090d;--bg2:#0c1018;--border:#151c28;--accent:#f0a500;
+    --text:#b0bac8;--dim:#3a4a5c;--muted:#8b9ab0;--faint:#2d3a4a;
+    --green:#22c55e;--red:#ef4444;--purple:#818cf8;--dark-red:#dc2626;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace}
+  body{display:flex;flex-direction:column;min-height:100vh}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(–bg)}
+::-webkit-scrollbar-thumb{background:var(–border)}
+
+/* HEADER */
+.header{padding:18px 32px;border-bottom:1px solid var(–border);background:linear-gradient(180deg,#0c1018 0%,#07090d 100%);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.header-title{font-family:‘Syne’,sans-serif;font-size:18px;font-weight:800;color:var(–accent);letter-spacing:0.05em}
+.header-dot{width:8px;height:8px;border-radius:50%;background:var(–accent);box-shadow:0 0 8px var(–accent);display:inline-block;margin-right:10px;animation:pulse 2s infinite}
+.header-sub{font-size:9px;color:var(–faint);letter-spacing:0.25em;margin-top:4px}
+.header-badge{font-size:9px;color:var(–faint);border:1px solid var(–border);padding:5px 12px}
+
+/* API KEY BANNER */
+.api-banner{background:#0a0e08;border-bottom:1px solid #f0a50030;padding:10px 32px;display:flex;align-items:center;gap:12px;font-size:10px}
+.api-banner label{color:var(–accent);letter-spacing:0.15em;white-space:nowrap}
+.api-banner input{flex:1;background:#0c1018;border:1px solid var(–border);color:var(–text);padding:6px 10px;font-family:inherit;font-size:10px;outline:none;border-radius:1px;transition:border-color 0.2s}
+.api-banner input:focus{border-color:var(–accent)}
+.api-banner .hint{color:var(–dim);font-size:9px;white-space:nowrap}
+
+/* BODY LAYOUT */
+.body{display:grid;grid-template-columns:330px 1fr;flex:1;min-height:0}
+
+/* LEFT PANEL */
+.left{border-right:1px solid var(–border);padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:18px}
+.section-label{font-size:9px;color:var(–dim);letter-spacing:0.22em;margin-bottom:8px}
+
+/* EXAMPLE BUTTONS */
+.ex-btn{display:block;width:100%;background:transparent;border:1px solid var(–border);color:var(–dim);padding:6px 10px;font-size:9px;font-family:inherit;cursor:pointer;text-align:left;letter-spacing:0.08em;transition:all 0.15s;border-radius:1px;margin-bottom:3px}
+.ex-btn:hover{border-color:var(–accent);color:var(–accent)}
+
+/* TEXTAREA */
+textarea{width:100%;background:var(–bg2);border:1px solid var(–border);color:var(–text);padding:11px;font-size:10px;font-family:inherit;resize:vertical;outline:none;line-height:1.7;border-radius:1px;transition:border-color 0.2s}
+textarea:focus{border-color:var(–accent)}
+
+/* FRAMEWORK TOGGLES */
+.fw-item{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(–border);cursor:pointer;transition:all 0.15s;margin-bottom:3px;border-radius:1px;user-select:none}
+.fw-item.active{border-color:rgba(240,165,0,0.2);background:rgba(240,165,0,0.04)}
+.fw-check{width:12px;height:12px;border:1px solid var(–dim);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;font-size:9px;font-weight:900}
+.fw-item.active .fw-check{border-color:var(–accent);background:var(–accent);color:#07090d}
+.fw-name{font-size:10px;color:var(–dim);font-weight:600;transition:color 0.15s}
+.fw-item.active .fw-name{color:var(–accent)}
+.fw-desc{font-size:9px;color:var(–faint);margin-top:2px;line-height:1.4}
+
+/* RUN BUTTON */
+.run-btn{width:100%;background:var(–accent);color:#07090d;border:none;padding:14px;font-size:10px;font-family:inherit;font-weight:700;letter-spacing:0.22em;cursor:pointer;transition:all 0.2s;border-radius:1px}
+.run-btn:disabled{background:var(–border);color:var(–dim);cursor:not-allowed}
+.run-btn:not(:disabled):hover{background:#ffc038}
+
+/* RIGHT PANEL */
+.right{padding:24px;overflow-y:auto}
+
+/* STATES */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;opacity:0.3;text-align:center}
+.empty-icon{font-size:52px}
+.empty-text{font-size:11px;letter-spacing:0.2em;color:var(–dim)}
+.empty-sub{font-size:10px;color:#1e2a38;max-width:280px;line-height:1.8}
+
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:4px;padding:40px}
+.loading-title{color:var(–accent);font-size:11px;letter-spacing:0.3em;margin-bottom:16px}
+.loading-step{font-size:10px;letter-spacing:0.1em;padding:3px 0}
+.loading-step.done{color:var(–accent)}
+.loading-step.active{color:var(–muted)}
+.loading-step.pending{color:#1e2a38}
+
+.error-box{background:#120a0a;border:1px solid #5c1010;padding:16px;color:#f87171;font-size:10px;line-height:1.7;border-radius:1px}
+.error-title{color:var(–red);font-weight:700;margin-bottom:8px;font-size:11px}
+
+/* ANALYSIS OUTPUT */
+.analysis-wrap{display:flex;flex-direction:column;gap:18px}
+.scene-header{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+.scene-type{font-family:‘Syne’,sans-serif;font-size:16px;font-weight:800;color:var(–accent);margin-bottom:5px}
+.scene-meta{font-size:9px;color:var(–dim);letter-spacing:0.1em;line-height:1.9}
+.fw-applied-badge{font-size:9px;color:var(–faint);border:1px solid var(–border);padding:5px 12px;white-space:nowrap}
+
+.summary-box{background:var(–bg2);border:1px solid rgba(240,165,0,0.15);border-left:3px solid var(–accent);padding:14px;font-size:10px;line-height:1.9;color:var(–muted)}
+.summary-label{color:var(–accent);font-size:9px;letter-spacing:0.22em;margin-bottom:8px}
+
+/* TABS */
+.tabs{border-bottom:1px solid var(–border);display:flex}
+.tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;color:var(–dim);padding:8px 18px;font-size:9px;font-family:inherit;letter-spacing:0.18em;cursor:pointer;margin-bottom:-1px;transition:all 0.15s}
+.tab-btn.active{border-bottom-color:var(–accent);color:var(–accent)}
+.tab-btn:hover:not(.active){color:var(–muted)}
+
+/* TAB CONTENT */
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* OUTCOMES */
+.outcome-card{background:var(–bg2);border:1px solid var(–border);padding:14px;border-radius:1px;margin-bottom:10px}
+.outcome-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.outcome-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.outcome-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.outcome-label{font-size:11px;color:#dce4f0;font-weight:600}
+.outcome-cat-badge{font-size:8px;padding:2px 7px;border-radius:1px}
+.outcome-pct{font-size:22px;font-weight:700;flex-shrink:0}
+.prob-bar{height:3px;background:var(–border);border-radius:2px;margin-bottom:10px}
+.prob-fill{height:100%;border-radius:2px}
+.outcome-desc{font-size:10px;color:#6b7a8d;line-height:1.7;margin-bottom:5px}
+.outcome-cond{font-size:9px;color:var(–dim)}
+
+.eq-label{font-size:9px;color:var(–dim);letter-spacing:0.22em;margin-bottom:8px;margin-top:4px}
+.eq-box{background:var(–bg2);border:1px solid var(–border);padding:14px;font-size:10px;line-height:1.9;color:var(–muted);border-radius:1px}
+
+/* PLAYERS */
+.players-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.player-card{background:var(–bg2);border:1px solid var(–border);padding:14px;border-radius:1px}
+.player-name{color:var(–accent);font-size:12px;font-weight:700;margin-bottom:12px;font-family:‘Syne’,sans-serif}
+.player-section{margin-bottom:10px}
+.player-section-label{font-size:8px;color:var(–dim);letter-spacing:0.2em;margin-bottom:4px}
+.player-obj{font-size:9px;color:var(–muted);border-left:2px solid #1e3060;padding-left:7px;margin-bottom:3px;line-height:1.5}
+.player-cap{font-size:9px;color:var(–muted);padding:2px 0}
+.player-batna{font-size:9px;color:var(–purple)}
+.player-info{font-size:9px;color:var(–green)}
+.player-divider{border-top:1px solid var(–border);padding-top:8px;margin-top:2px}
+
+/* FRAMEWORKS */
+.fw-card{background:var(–bg2);border:1px solid var(–border);padding:14px;border-radius:1px;margin-bottom:10px}
+.fw-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.fw-thinker{color:var(–accent);font-size:11px;font-weight:700}
+.fw-name-tag{color:var(–dim);font-size:9px;margin-left:8px}
+.fw-conf-badge{font-size:9px;padding:2px 8px;border-radius:1px}
+.fw-insight{font-size:9px;color:var(–purple);font-style:italic;margin-bottom:6px}
+.fw-pred{font-size:10px;color:var(–muted);line-height:1.7}
+
+/* FACTORS */
+.factors-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.factor-card{background:var(–bg2);padding:14px;border-radius:0 0 1px 1px}
+.factor-card-label{font-size:9px;letter-spacing:0.2em;margin-bottom:10px}
+.factor-item{font-size:9px;color:var(–muted);padding:6px 0;border-bottom:1px solid var(–border);line-height:1.5}
+.factor-item:last-child{border-bottom:none}
+
+/* ANIMATIONS */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.slide-in{animation:slideIn 0.4s ease both}
+
+/* RESPONSIVE */
+@media(max-width:800px){
+.body{grid-template-columns:1fr}
+.left{border-right:none;border-bottom:1px solid var(–border)}
+.factors-grid{grid-template-columns:1fr}
+.right{padding:16px}
+}
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div style="display:flex;align-items:center">
+      <span class="header-dot"></span>
+      <span class="header-title">STRATEGIC EQUILIBRIUM ENGINE</span>
+    </div>
+    <div class="header-sub">GAME THEORY · BEHAVIORAL ECONOMICS · GEOPOLITICAL MODELING</div>
+  </div>
+  <div class="header-badge" id="fw-count-badge">7 FRAMEWORKS ACTIVE</div>
+</div>
+
+<div class="api-banner">
+  <label>ANTHROPIC API KEY</label>
+  <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off"/>
+  <span class="hint">Key stays local — never sent anywhere except Anthropic's API</span>
+</div>
+
+<div class="body">
+  <!-- LEFT PANEL -->
+  <div class="left">
+
+```
+<div>
+  <div class="section-label">QUICK LOAD — EXAMPLE SCENARIOS</div>
+  <button class="ex-btn" onclick="loadExample(0)">→ US-China / Taiwan Strait</button>
+  <button class="ex-btn" onclick="loadExample(1)">→ OPEC+ Oil Production</button>
+  <button class="ex-btn" onclick="loadExample(2)">→ Tech M&amp;A Negotiation</button>
+  <button class="ex-btn" onclick="loadExample(3)">→ NATO Article 5 Activation</button>
+</div>
+
+<div>
+  <div class="section-label">SCENARIO DESCRIPTION *</div>
+  <textarea id="scenario" rows="9" placeholder="Describe the geopolitical, economic, or negotiation scenario. Include: key actors, stated positions, recent developments, constraints, and what's at stake..."></textarea>
+</div>
+
+<div>
+  <div class="section-label">TREND DATA / ADDITIONAL CONTEXT (OPTIONAL)</div>
+  <textarea id="context" rows="4" placeholder="Economic indicators, polling data, intelligence, historical precedents, or quantitative context to inform the model..."></textarea>
+</div>
+
+<div>
+  <div class="section-label" id="fw-label">ANALYTICAL FRAMEWORKS (7/10 ACTIVE)</div>
+  <div id="fw-list"></div>
+</div>
+
+<button class="run-btn" id="run-btn" onclick="runAnalysis()">RUN EQUILIBRIUM ANALYSIS →</button>
+```
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+
+  <div class="right" id="right-panel">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">⚖</div>
+      <div class="empty-text">AWAITING SCENARIO INPUT</div>
+      <div class="empty-sub">Enter a geopolitical, economic, or negotiation scenario to begin multi-framework equilibrium analysis</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+
+const FRAMEWORKS = [
+  { id:"Nash",        thinker:"John Nash",          desc:"Nash Equilibrium — stable mutual best responses" },
+  { id:"Schelling",   thinker:"Thomas Schelling",    desc:"Focal points, commitment & brinkmanship" },
+  { id:"Shapley",     thinker:"Lloyd Shapley",       desc:"Power distribution & coalition leverage" },
+  { id:"Harsanyi",    thinker:"John Harsanyi",       desc:"Bayesian games, incomplete information" },
+  { id:"Selten",      thinker:"Reinhard Selten",     desc:"Credible threats, backward induction" },
+  { id:"Aumann",      thinker:"Robert Aumann",       desc:"Repeated games, reputation, common knowledge" },
+  { id:"Kahneman",    thinker:"Daniel Kahneman",     desc:"Prospect theory, loss aversion, behavioral" },
+  { id:"Ostrom",      thinker:"Elinor Ostrom",       desc:"Collective action, institutional solutions" },
+  { id:"Mearsheimer", thinker:"John Mearsheimer",    desc:"Power transition, security dilemma, realism" },
+  { id:"Taleb",       thinker:"Nassim Taleb",        desc:"Fat tails, fragility, non-linear thresholds" },
+];
+
+const EXAMPLES = [
+  "China is intensifying military exercises around Taiwan following US arms sales. The US has reaffirmed its commitment to Taiwan's self-defense capacity through deliberate strategic ambiguity. Taiwan is seeking expanded international recognition. ASEAN nations are caught between economic dependence on China and security alignment with the US. China's economy is slowing with 5% growth target under pressure. US election cycle creates uncertainty about long-term commitment credibility.",
+  "Saudi Arabia and Russia are negotiating OPEC+ production levels amid falling oil prices (~$72/barrel). US shale producers can rapidly scale output above $75/barrel. European nations are pressuring for increased supply to lower energy costs. Iran operates outside the cartel with sanctions relief potentially imminent. Saudi fiscal breakeven is ~$80/barrel. Russia needs oil revenue to fund military operations. The UAE has repeatedly exceeded its quotas.",
+  "A large tech acquirer ($80B market cap, stock down 25% YTD) wants to acquire a Series D AI startup last valued at $2.1B. The startup has two other interested strategic buyers (one Big Tech, one PE firm). The startup's CTO and three key engineers have vesting that completes in 5 months. The acquirer wants a stock deal; the startup founders want cash. Regulatory scrutiny of Big Tech acquisitions is high.",
+  "A NATO member (Estonia) has experienced coordinated cyberattacks on critical infrastructure and a border incursion by soldiers in unmarked uniforms. Attribution to Russia is high-confidence but not publicly released. Russia denies involvement and calls it a provocation. Germany and France are urging restraint and diplomatic channels. The US is signaling strong Article 5 solidarity. Article 5 activation requires unanimous consent. Baltic states are pushing for immediate response."
+];
+
+const CAT_COLOR = {
+  cooperative:"#22c55e", conflict:"#ef4444",
+  stalemate:"#f59e0b", collapse:"#dc2626", other:"#818cf8"
+};
+const CAT_LABEL = {
+  cooperative:"Cooperative", conflict:"Conflict / Escalation",
+  stalemate:"Stalemate / Status Quo", collapse:"Collapse / Crisis", other:"Divergent"
+};
+
+const LOADING_STEPS = [
+  "Extracting game structure",
+  "Mapping player objectives & BATNAs",
+  "Computing Nash equilibria",
+  "Applying Schelling focal points",
+  "Calculating Shapley values",
+  "Running Bayesian inference",
+  "Modeling behavioral deviations",
+  "Assessing tail risks",
+  "Synthesizing probability distribution"
+];
+
+const SYSTEM_PROMPT = `You are the Strategic Equilibrium Engine — a rigorous analytical system applying game theory and strategic frameworks to predict outcomes in geopolitical, economic, and negotiation scenarios.
+
+ANALYTICAL SEQUENCE:
+
+STEP 1 — STRUCTURAL EXTRACTION
+Identify: Players (all actors with agency), Objectives (ranked preferences/utility), Capabilities (what each can credibly do), Information structure (who knows what), Time horizon (one-shot vs repeated), Outside options (BATNA for each player).
+
+STEP 2 — GAME CLASSIFICATION
+Classify: Cooperative vs non-cooperative, Zero-sum vs positive-sum, Simultaneous vs sequential, Complete vs incomplete information, One-shot vs repeated, Number of players.
+
+STEP 3 — MULTI-FRAMEWORK ANALYSIS
+
+NASH: Find Nash Equilibrium — stable outcome where no player benefits from unilateral deviation. Is it Pareto optimal or suboptimal (prisoner's dilemma trap)? Multiple equilibria?
+
+SCHELLING: Focal points — where do players naturally converge without explicit coordination? Commitment devices — what makes threats credible? Brinkmanship — who blinks first? Face-saving exits available?
+
+SHAPLEY: Each player's marginal contribution averaged across all coalition orderings. Who has structural leverage? What coalitions are stable? Who is the kingmaker?
+
+HARSANYI: Bayesian types — what private information does each player have? How does incomplete information change equilibrium? What signals are credible? What do actions reveal?
+
+SELTEN: Backward induction from terminal nodes. Which threats survive subgame perfection? Non-credible threats should be ignored by rational players.
+
+AUMANN: Common knowledge of rationality. Folk theorem — in repeated games, cooperation can be sustained if players are patient. What reputation effects constrain behavior?
+
+KAHNEMAN: Loss domain vs gain domain — players in loss domain take more risks. Loss aversion (~2x asymmetry). Status quo bias. Probability weighting. Where does bounded rationality deviate from classical predictions?
+
+OSTROM: Collective action — institutional solutions possible? Monitoring and enforcement mechanisms? Polycentric governance? Who defines the rules?
+
+MEARSHEIMER: Power distribution and trajectory. Rising vs declining powers. Offensive realism — states maximize power under uncertainty. Security dilemma. Power transition war risk.
+
+TALEB: Where does the model underestimate variance? Fat tails — extreme events more likely than normal distributions suggest. Fragility — what small perturbation cascades? Who benefits from volatility?
+
+STEP 4 — SYNTHESIS
+Most likely outcome with probability. Alternative outcomes ranked by probability (MUST sum to exactly 100). Key swing factors. Tipping point conditions. Warning signals. Strategic recommendations.
+
+CRITICAL INSTRUCTION: Respond ONLY with valid JSON. No markdown fences, no preamble, no explanation. Return exactly this structure:
+
+{"scenario_type":"string","game_classification":{"cooperative":false,"zero_sum":false,"sequential":false,"complete_info":false,"repeated":false,"n_players":2},"players":[{"name":"string","objectives":["string"],"capabilities":["string"],"outside_option":"string","information_advantage":"string"}],"framework_analyses":[{"framework":"string","thinker":"string","key_insight":"string","prediction":"string","confidence":75}],"equilibrium_analysis":"string with 2-3 paragraphs","outcomes":[{"label":"string","description":"string","probability":40,"conditions":"string","category":"cooperative"}],"swing_factors":["string"],"tipping_points":["string"],"warning_signals":["string"],"tail_risks":["string"],"strategic_summary":"string 3-4 sentences"}
+
+Rules: All probabilities are integers 0-100. Outcome probabilities MUST sum to exactly 100. Categories must be one of: cooperative, conflict, stalemate, collapse, other.`;
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+
+let activeFrameworks = new Set(["Nash","Schelling","Shapley","Harsanyi","Kahneman","Selten","Taleb"]);
+let currentTab = "outcomes";
+let loadingInterval = null;
+let loadingStepIdx = 0;
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+
+function init() {
+  const list = document.getElementById("fw-list");
+  FRAMEWORKS.forEach(f => {
+    const item = document.createElement("div");
+    item.className = "fw-item" + (activeFrameworks.has(f.id) ? " active" : "");
+    item.id = "fw-" + f.id;
+    item.onclick = () => toggleFramework(f.id);
+    item.innerHTML = `
+      <div class="fw-check" id="check-${f.id}">${activeFrameworks.has(f.id) ? "✓" : ""}</div>
+      <div>
+        <div class="fw-name">${f.thinker}</div>
+        <div class="fw-desc">${f.desc}</div>
+      </div>`;
+    list.appendChild(item);
+  });
+  updateFwCount();
+}
+
+function toggleFramework(id) {
+  if (activeFrameworks.has(id)) {
+    if (activeFrameworks.size <= 1) return; // keep at least 1
+    activeFrameworks.delete(id);
+  } else {
+    activeFrameworks.add(id);
+  }
+  const item = document.getElementById("fw-" + id);
+  const check = document.getElementById("check-" + id);
+  item.classList.toggle("active", activeFrameworks.has(id));
+  check.textContent = activeFrameworks.has(id) ? "✓" : "";
+  updateFwCount();
+}
+
+function updateFwCount() {
+  const n = activeFrameworks.size;
+  document.getElementById("fw-label").textContent = `ANALYTICAL FRAMEWORKS (${n}/10 ACTIVE)`;
+  document.getElementById("fw-count-badge").textContent = `${n} FRAMEWORKS ACTIVE`;
+}
+
+function loadExample(i) {
+  document.getElementById("scenario").value = EXAMPLES[i];
+  clearOutput();
+}
+
+function clearOutput() {
+  document.getElementById("right-panel").innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">⚖</div>
+      <div class="empty-text">AWAITING SCENARIO INPUT</div>
+      <div class="empty-sub">Enter a geopolitical, economic, or negotiation scenario to begin multi-framework equilibrium analysis</div>
+    </div>`;
+}
+
+// ─── ANALYSIS ─────────────────────────────────────────────────────────────────
+
+async function runAnalysis() {
+  const scenario = document.getElementById("scenario").value.trim();
+  const context = document.getElementById("context").value.trim();
+  const apiKey = document.getElementById("api-key").value.trim();
+
+  if (!scenario) { alert("Please enter a scenario."); return; }
+  if (!apiKey) { alert("Please enter your Anthropic API key."); return; }
+
+  setLoading(true);
+
+  const fwDetails = FRAMEWORKS
+    .filter(f => activeFrameworks.has(f.id))
+    .map(f => `${f.thinker} [${f.id}]: ${f.desc}`)
+    .join("\n");
+
+  const userPrompt = `SCENARIO:\n${scenario}\n\n${context ? `ADDITIONAL CONTEXT / TREND DATA:\n${context}\n\n` : ""}APPLY THESE FRAMEWORKS:\n${fwDetails}\n\nAnalyze rigorously. Be specific and quantitative. Outcomes must sum to exactly 100%.`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = (data.content[0]?.text || "").replace(/```json\n?|\n?```/g, "").trim();
+    const result = JSON.parse(text);
+    setLoading(false);
+    renderResult(result);
+  } catch (e) {
+    setLoading(false);
+    renderError(e.message);
+  }
+}
+
+function setLoading(on) {
+  const btn = document.getElementById("run-btn");
+  if (on) {
+    btn.disabled = true;
+    btn.textContent = "ANALYZING...";
+    loadingStepIdx = 0;
+    showLoading();
+    loadingInterval = setInterval(() => {
+      loadingStepIdx = Math.min(loadingStepIdx + 1, LOADING_STEPS.length - 1);
+      updateLoadingSteps();
+    }, 900);
+  } else {
+    btn.disabled = false;
+    btn.textContent = "RUN EQUILIBRIUM ANALYSIS →";
+    if (loadingInterval) clearInterval(loadingInterval);
+  }
+}
+
+function showLoading() {
+  const panel = document.getElementById("right-panel");
+  panel.innerHTML = `
+    <div class="loading-wrap">
+      <div class="loading-title">RUNNING EQUILIBRIUM ANALYSIS</div>
+      ${LOADING_STEPS.map((s,i) => `<div class="loading-step ${i===0?'active':'pending'}" id="lstep-${i}">${i===0?'› ':'  '}${s}...</div>`).join("")}
+    </div>`;
+}
+
+function updateLoadingSteps() {
+  LOADING_STEPS.forEach((s,i) => {
+    const el = document.getElementById("lstep-"+i);
+    if (!el) return;
+    if (i < loadingStepIdx) { el.className="loading-step done"; el.textContent="✓ "+s+"..."; }
+    else if (i===loadingStepIdx) { el.className="loading-step active"; el.textContent="› "+s+"..."; }
+    else { el.className="loading-step pending"; el.textContent="  "+s+"..."; }
+  });
+}
+
+function renderError(msg) {
+  document.getElementById("right-panel").innerHTML = `
+    <div class="error-box">
+      <div class="error-title">⚠ ANALYSIS ERROR</div>
+      ${escHtml(msg)} — The model may have returned malformed JSON. Try running again.
+    </div>`;
+}
+
+// ─── RENDER RESULT ─────────────────────────────────────────────────────────────
+
+function renderResult(r) {
+  const gc = r.game_classification || {};
+  const total = (r.outcomes||[]).reduce((s,o)=>s+o.probability,0);
+
+  const panel = document.getElementById("right-panel");
+  panel.innerHTML = `
+    <div class="analysis-wrap slide-in">
+
+      <!-- HEADER -->
+      <div class="scene-header">
+        <div>
+          <div class="scene-type">${escHtml(r.scenario_type||"")}</div>
+          <div class="scene-meta">
+            ${gc.n_players||"?"} PLAYERS &nbsp;·&nbsp;
+            ${gc.zero_sum?"ZERO-SUM":"POSITIVE-SUM"} &nbsp;·&nbsp;
+            ${gc.sequential?"SEQUENTIAL":"SIMULTANEOUS"} &nbsp;·&nbsp;
+            ${gc.complete_info?"COMPLETE INFO":"INCOMPLETE INFO"} &nbsp;·&nbsp;
+            ${gc.repeated?"REPEATED GAME":"ONE-SHOT"}
+          </div>
+        </div>
+        <div class="fw-applied-badge">${(r.framework_analyses||[]).length} FRAMEWORKS APPLIED</div>
+      </div>
+
+      <!-- SUMMARY -->
+      <div class="summary-box">
+        <div class="summary-label">STRATEGIC SUMMARY</div>
+        ${escHtml(r.strategic_summary||"")}
+      </div>
+
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-outcomes"  onclick="switchTab('outcomes')">OUTCOMES</button>
+        <button class="tab-btn"        id="tab-players"   onclick="switchTab('players')">PLAYERS</button>
+        <button class="tab-btn"        id="tab-frameworks" onclick="switchTab('frameworks')">FRAMEWORKS</button>
+        <button class="tab-btn"        id="tab-factors"   onclick="switchTab('factors')">FACTORS</button>
+      </div>
+
+      <!-- OUTCOMES -->
+      <div class="tab-content active" id="content-outcomes">
+        <div class="section-label" style="margin-bottom:10px">OUTCOME PROBABILITY DISTRIBUTION (Σ = ${total}%)</div>
+        ${(r.outcomes||[]).sort((a,b)=>b.probability-a.probability).map(o => renderOutcome(o)).join("")}
+        <div class="eq-label">EQUILIBRIUM ANALYSIS</div>
+        <div class="eq-box">${escHtml(r.equilibrium_analysis||"")}</div>
+      </div>
+
+      <!-- PLAYERS -->
+      <div class="tab-content" id="content-players">
+        <div class="players-grid">
+          ${(r.players||[]).map(p => renderPlayer(p)).join("")}
+        </div>
+      </div>
+
+      <!-- FRAMEWORKS -->
+      <div class="tab-content" id="content-frameworks">
+        ${(r.framework_analyses||[]).map(fw => renderFramework(fw)).join("")}
+      </div>
+
+      <!-- FACTORS -->
+      <div class="tab-content" id="content-factors">
+        <div class="factors-grid">
+          ${renderFactorCard("⚡ SWING FACTORS", r.swing_factors, "#818cf8")}
+          ${renderFactorCard("⚖ TIPPING POINTS", r.tipping_points, "#f0a500")}
+          ${renderFactorCard("📡 WARNING SIGNALS", r.warning_signals, "#22c55e")}
+          ${renderFactorCard("☢ TAIL RISKS", r.tail_risks, "#ef4444")}
+        </div>
+      </div>
+
+    </div>`;
+}
+
+function renderOutcome(o) {
+  const col = CAT_COLOR[o.category] || "#818cf8";
+  const label = CAT_LABEL[o.category] || o.category;
+  return `
+    <div class="outcome-card">
+      <div class="outcome-header">
+        <div class="outcome-left">
+          <div class="outcome-dot" style="background:${col};box-shadow:0 0 6px ${col}"></div>
+          <span class="outcome-label">${escHtml(o.label)}</span>
+          <span class="outcome-cat-badge" style="color:${col};border:1px solid ${col}30;background:${col}10">${label}</span>
+        </div>
+        <div class="outcome-pct" style="color:${col}">${o.probability}%</div>
+      </div>
+      <div class="prob-bar"><div class="prob-fill" style="width:${o.probability}%;background:${col}"></div></div>
+      <div class="outcome-desc">${escHtml(o.description)}</div>
+      <div class="outcome-cond">CONDITIONS: ${escHtml(o.conditions)}</div>
+    </div>`;
+}
+
+function renderPlayer(p) {
+  return `
+    <div class="player-card">
+      <div class="player-name">${escHtml(p.name)}</div>
+      <div class="player-section">
+        <div class="player-section-label">OBJECTIVES</div>
+        ${(p.objectives||[]).map((o,i)=>`<div class="player-obj">${i+1}. ${escHtml(o)}</div>`).join("")}
+      </div>
+      <div class="player-section">
+        <div class="player-section-label">CAPABILITIES</div>
+        ${(p.capabilities||[]).map(c=>`<div class="player-cap">· ${escHtml(c)}</div>`).join("")}
+      </div>
+      <div class="player-section player-divider">
+        <div class="player-section-label">OUTSIDE OPTION / BATNA</div>
+        <div class="player-batna">${escHtml(p.outside_option||"")}</div>
+      </div>
+      <div class="player-section">
+        <div class="player-section-label">INFORMATION ADVANTAGE</div>
+        <div class="player-info">${escHtml(p.information_advantage||"")}</div>
+      </div>
+    </div>`;
+}
+
+function renderFramework(fw) {
+  const conf = fw.confidence || 0;
+  const col = conf >= 70 ? "#22c55e" : conf >= 50 ? "#f0a500" : "#ef4444";
+  return `
+    <div class="fw-card">
+      <div class="fw-card-header">
+        <div>
+          <span class="fw-thinker">${escHtml(fw.thinker)}</span>
+          <span class="fw-name-tag">→ ${escHtml(fw.framework)}</span>
+        </div>
+        <div class="fw-conf-badge" style="color:${col};border:1px solid ${col}30;background:${col}10">${conf}% CONFIDENCE</div>
+      </div>
+      <div class="fw-insight">KEY INSIGHT: ${escHtml(fw.key_insight)}</div>
+      <div class="fw-pred">${escHtml(fw.prediction)}</div>
+    </div>`;
+}
+
+function renderFactorCard(label, items, col) {
+  return `
+    <div class="factor-card" style="border-top:2px solid ${col}">
+      <div class="factor-card-label" style="color:${col}">${label}</div>
+      ${(items||[]).map(item=>`<div class="factor-item">${escHtml(item)}</div>`).join("")}
+    </div>`;
+}
+
+function switchTab(name) {
+  ["outcomes","players","frameworks","factors"].forEach(t => {
+    document.getElementById("tab-"+t)?.classList.toggle("active", t===name);
+    document.getElementById("content-"+t)?.classList.toggle("active", t===name);
+  });
+  currentTab = name;
+}
+
+function escHtml(str) {
+  return String(str||"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+// ─── BOOT ────────────────────────────────────────────────────────────────────
+init();
+</script>
+
+</body>
+</html>
